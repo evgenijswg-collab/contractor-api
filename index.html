@@ -106,7 +106,7 @@
                                     <td x-text="c.revenue ? c.revenue + ' ₽' : '—'"></td>
                                     <td x-text="c.profit ? c.profit + ' ₽' : '—'"></td>
                                     <td><span class="badge" :class="(c.risk||0) < 30 ? 'badge-ok' : (c.risk||0) < 60 ? 'badge-warn' : 'badge-danger'" x-text="(c.risk||0)+'/100'"></span></td>
-                                    <td><span x-show="c.ens_debt" class="alert alert-danger">Задолженность</span><span x-show="!c.ens_debt">—</span></td>
+                                    <td><span x-show="c.ens_debt" class="alert alert-danger" x-text="c.ens_debt"></span><span x-show="!c.ens_debt">—</span></td>
                                     <td><span x-show="c.blocked" class="alert alert-danger">🔒 Да</span><span x-show="!c.blocked">—</span></td>
                                     <td><span x-show="c.suspended" class="alert alert-warning">⏸ Да</span><span x-show="!c.suspended">—</span></td>
                                     <td><button class="btn-delete" @click="removeContractor(idx)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
