@@ -149,6 +149,7 @@
             if (num === null) return null;
             if (isThousands) num = num * 1000;
             const abs = Math.abs(num);
+            if (abs >= 1e9) return (num / 1e9).toFixed(1) + ' млрд ₽';
             if (abs >= 1e6) return (num / 1e6).toFixed(0) + ' млн ₽';
             if (abs >= 1e3) return (num / 1e3).toFixed(0) + ' тыс ₽';
             return num.toLocaleString('ru-RU') + ' ₽';
