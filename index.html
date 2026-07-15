@@ -41,7 +41,8 @@
         .badge-danger { background: #fef2f2; color: var(--danger); }
         .alert { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; }
         .alert-danger { background: #fef2f2; color: var(--danger); }
-        .alert-warning { background: #fffbeb; color: var(--warning); }
+        .text-red { color: var(--danger); font-weight: 500; }
+        .text-green { color: var(--success); font-weight: 500; }
         .btn-delete { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
         .btn-delete:hover { color: #ef4444; background: #fef2f2; }
         .anomaly-list { max-height: calc(100vh - 200px); overflow-y: auto; }
@@ -72,7 +73,6 @@
     <main class="main">
         <div class="layout">
             
-            <!-- ЛЕВАЯ КОЛОНКА -->
             <div>
                 <div class="card">
                     <div class="card-header">Добавить</div>
@@ -87,7 +87,6 @@
                 </div>
             </div>
             
-            <!-- ЦЕНТР: Таблица -->
             <div class="card">
                 <div class="card-header">Контрагенты <span style="font-weight:400;color:var(--text2);" x-text="contractors.length"></span></div>
                 <div class="table-wrap">
@@ -103,12 +102,15 @@
                                 <tr>
                                     <td style="font-family:monospace;" x-text="c.inn"></td>
                                     <td x-text="c.name || '—'"></td>
-                                    <td x-text="c.revenue ? c.revenue + ' ₽' : '—'"></td>
-                                    <td x-text="c.profit ? c.profit + ' ₽' : '—'"></td>
+                                    <td x-text="c.revenue || '—'"></td>
+                                    <td>
+                                        <span x-show="c.profit" :class="c.profit.includes('-') ? 'text-red' : 'text-green'" x-text="c.profit"></span>
+                                        <span x-show="!c.profit">—</span>
+                                    </td>
                                     <td><span class="badge" :class="(c.risk||0) < 30 ? 'badge-ok' : (c.risk||0) < 60 ? 'badge-warn' : 'badge-danger'" x-text="(c.risk||0)+'/100'"></span></td>
                                     <td><span x-show="c.ens_debt" class="alert alert-danger" x-text="c.ens_debt"></span><span x-show="!c.ens_debt">—</span></td>
                                     <td><span x-show="c.blocked" class="alert alert-danger">🔒 Да</span><span x-show="!c.blocked">—</span></td>
-                                    <td><span x-show="c.suspended" class="alert alert-warning">⏸ Да</span><span x-show="!c.suspended">—</span></td>
+                                    <td><span x-show="c.suspended" class="alert alert-danger">⏸ Да</span><span x-show="!c.suspended">—</span></td>
                                     <td><button class="btn-delete" @click="removeContractor(idx)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
                                 </tr>
                             </template>
@@ -118,7 +120,6 @@
                 </div>
             </div>
             
-            <!-- ПРАВАЯ КОЛОНКА: Аномалии -->
             <div class="card">
                 <div class="card-header" style="border-bottom-color: #fecaca;">
                     ⚠️ Аномалии
@@ -141,6 +142,19 @@
     
     <script>
         const API_URL = 'https://contractor-api-vv9f.onrender.com';
+        
+        function formatMoney(val) {
+            if (!val) return null;
+            // Убираем всё кроме цифр и точки
+            const num = parseFloat(String(val).replace(/[^\d.]/g, ''));
+            if (isNaN(num)) return val;
+            // Если больше миллиона — в млн
+            if (Math.abs(num) >= 1000000) {
+                return (num / 1000000).toFixed(0) + ' млн ₽';
+            }
+            // В тысячах
+            return num.toLocaleString('ru-RU') + ' ₽';
+        }
         
         function app() {
             return {
@@ -175,8 +189,11 @@
                         else {
                             this.contractors.push({
                                 inn, name: d.name, risk: d.risk, status: d.status,
-                                revenue: d.revenue, profit: d.profit,
-                                ens_debt: d.ens_debt, blocked: d.blocked, suspended: d.suspended
+                                revenue: formatMoney(d.revenue),
+                                profit: formatMoney(d.profit),
+                                ens_debt: d.ens_debt,
+                                blocked: d.blocked,
+                                suspended: d.suspended
                             });
                             this.lastAdded = '✓ ' + d.name; this.newInn = ''; this.save();
                         }
@@ -200,20 +217,18 @@
                                 status: this.contractors[i].status,
                                 risk: this.contractors[i].risk,
                                 blocked: this.contractors[i].blocked,
-                                suspended: this.contractors[i].suspended,
                                 ens_debt: this.contractors[i].ens_debt
                             };
                             
                             this.contractors[i].name = d.name;
                             this.contractors[i].risk = d.risk;
                             this.contractors[i].status = d.status;
-                            this.contractors[i].revenue = d.revenue;
-                            this.contractors[i].profit = d.profit;
+                            this.contractors[i].revenue = formatMoney(d.revenue);
+                            this.contractors[i].profit = formatMoney(d.profit);
                             this.contractors[i].ens_debt = d.ens_debt;
                             this.contractors[i].blocked = d.blocked;
                             this.contractors[i].suspended = d.suspended;
                             
-                            // Аномалии
                             const name = d.name;
                             const now = new Date().toLocaleString('ru-RU');
                             
@@ -225,9 +240,6 @@
                             }
                             if (!prev.blocked && d.blocked) {
                                 this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'BLOCK', description: 'Счета заблокированы!' });
-                            }
-                            if (!prev.suspended && d.suspended) {
-                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'BLOCK', description: 'Операции приостановлены' });
                             }
                             if (!prev.ens_debt && d.ens_debt) {
                                 this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'RISK', description: 'Появилась задолженность по ЕНС' });
