@@ -49,18 +49,43 @@ def check_company():
         }, timeout=10)
         check_data = check_resp.json() if check_resp.status_code == 200 else {}
         
-        # Парсинг
+        # Парсинг компании
         company = egr_data.get('items', [{}])[0] if egr_data.get('items') else {}
         checks = check_data.get('items', [{}])[0] if check_data.get('items') else {}
         
-        ul = company.get('ЮЛ', {})
-        name = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
+        # Юрлицо (UL) или ИП (IP)
+        ul = company.get('UL', {})
+        ip = company.get('IP', {})
+        
+        if ul:
+            name = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
+            ogrn = ul.get('ОГРН', '')
+            status = ul.get('Статус', 'Неизвестно')
+            address_data = ul.get('Адрес', {})
+            okved = ul.get('ОКВЭД', {}).get('Код', '') if isinstance(ul.get('ОКВЭД'), dict) else ''
+        elif ip:
+            fio = ip.get('ФИОРус', {})
+            name = f"ИП {fio.get('Фамилия', '')} {fio.get('Имя', '')} {fio.get('Отчество', '')}".strip()
+            ogrn = ip.get('ОГРНИП', '')
+            status = ip.get('Статус', 'Неизвестно')
+            address_data = ip.get('Адрес', {})
+            okved = ip.get('ОКВЭД', {}).get('Код', '') if isinstance(ip.get('ОКВЭД'), dict) else ''
+        else:
+            name = 'Неизвестно'
+            ogrn = ''
+            status = 'Неизвестно'
+            address_data = {}
+            okved = ''
+        
+        # Адрес
+        if isinstance(address_data, dict):
+            address = address_data.get('АдресПолн', '')
+        else:
+            address = str(address_data) if address_data else ''
         
         # Риски
         risk = 0
         risk_factors = []
-        
-        status = ul.get('Статус', 'Неизвестно')
         
         if status == 'Ликвидировано':
             risk = 100
@@ -85,12 +110,12 @@ def check_company():
         return jsonify({
             'inn': inn,
             'name': name,
-            'ogrn': ul.get('ОГРН', ''),
+            'ogrn': ogrn,
             'status': status,
             'risk': min(100, risk),
             'risk_factors': risk_factors,
-            'address': ul.get('Адрес', ''),
-            'okved': ul.get('ОКВЭД', '')
+            'address': address,
+            'okved': okved
         })
     
     except requests.exceptions.Timeout:
