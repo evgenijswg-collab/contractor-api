@@ -43,7 +43,7 @@ def check_company():
             'req': inn,
             'key': FNS_API_KEY
         }, timeout=10)
-        check_raw = check_resp.json() if check_resp.status_code == 200 else []
+        check_raw = check_resp.json() if check_resp.status_code == 200 else {}
         
         result = {
             'inn': inn,
@@ -56,46 +56,53 @@ def check_company():
             'okved': ''
         }
         
-        if isinstance(raw_data, list) and len(raw_data) > 0:
-            root_item = raw_data[0]
-            items = root_item.get('items', [])
-            
-            if items:
-                company = items[0]
-                result['ogrn'] = company.get('ОГРН', '')
-                result['address'] = company.get('АдресПолн', '')
-                
-                ul = company.get('UL')
-                ip = company.get('IP')
-                
-                if ul:
-                    result['name'] = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
-                    result['status'] = ul.get('Статус', 'Неизвестно')
-                    result['address'] = ul.get('АдресПолн') or result['address']
-                    
-                elif ip:
-                    fio = ip.get('ФИОРус', {})
-                    parts = [fio.get('Фамилия'), fio.get('Имя'), fio.get('Отчество')]
-                    fio_string = ' '.join(filter(None, parts))
-                    result['name'] = f'ИП {fio_string}' if fio_string else 'Неизвестно'
-                    result['status'] = ip.get('Статус', 'Неизвестно')
-                    result['address'] = ip.get('АдресПолн') or result['address']
+        # УНИВЕРСАЛЬНАЯ НОРМАЛИЗАЦИЯ: список или словарь
+        if isinstance(raw_data, list):
+            root_item = raw_data[0] if len(raw_data) > 0 else {}
+        else:
+            root_item = raw_data
         
-        if isinstance(check_raw, list) and len(check_raw) > 0:
-            check_root = check_raw[0]
-            check_items = check_root.get('items', [])
-            if check_items:
-                checks = check_items[0]
-                
-                if checks.get('МассовыйАдрес'):
-                    result['risk'] += 20
-                    result['risk_factors'].append('Массовый адрес регистрации')
-                if checks.get('МассовыйРуководитель'):
-                    result['risk'] += 15
-                    result['risk_factors'].append('Массовый руководитель')
-                if checks.get('НедостоверныеСведения'):
-                    result['risk'] += 30
-                    result['risk_factors'].append('Недостоверные сведения')
+        items = root_item.get('items', [])
+        
+        if items:
+            company = items[0]
+            result['ogrn'] = company.get('ОГРН', '')
+            result['address'] = company.get('АдресПолн', '')
+            
+            ul = company.get('UL')
+            ip = company.get('IP')
+            
+            if ul:
+                result['name'] = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
+                result['status'] = ul.get('Статус', 'Неизвестно')
+                result['address'] = ul.get('АдресПолн') or result['address']
+            elif ip:
+                fio = ip.get('ФИОРус', {})
+                parts = [fio.get('Фамилия'), fio.get('Имя'), fio.get('Отчество')]
+                fio_string = ' '.join(filter(None, parts))
+                result['name'] = f'ИП {fio_string}' if fio_string else 'Неизвестно'
+                result['status'] = ip.get('Статус', 'Неизвестно')
+                result['address'] = ip.get('АдресПолн') or result['address']
+        
+        # УНИВЕРСАЛЬНАЯ НОРМАЛИЗАЦИЯ: список или словарь
+        if isinstance(check_raw, list):
+            check_root = check_raw[0] if len(check_raw) > 0 else {}
+        else:
+            check_root = check_raw
+        
+        check_items = check_root.get('items', [])
+        if check_items:
+            checks = check_items[0]
+            
+            if checks.get('МассовыйАдрес'):
+                result['risk'] += 20
+                result['risk_factors'].append('Массовый адрес регистрации')
+            if checks.get('МассовыйРуководитель'):
+                result['risk'] += 15
+                result['risk_factors'].append('Массовый руководитель')
+            if checks.get('НедостоверныеСведения'):
+                result['risk'] += 30
+                result['risk_factors'].append('Недостоверные сведения')
         
         if result['status'] == 'Ликвидировано':
             result['risk'] = 100
