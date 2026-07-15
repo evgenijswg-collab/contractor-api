@@ -12,6 +12,20 @@ FNS_API_KEY = os.environ.get('FNS_API_KEY')
 def home():
     return jsonify({'status': 'ok'})
 
+@app.route('/api/debug')
+def debug():
+    inn = request.args.get('inn', '7724320985')
+    
+    bo_resp = requests.get('https://api-fns.ru/api/bo', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
+    check_resp = requests.get('https://api-fns.ru/api/check', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
+    
+    return jsonify({
+        'bo_status': bo_resp.status_code,
+        'bo_data': bo_resp.json() if bo_resp.status_code == 200 else bo_resp.text[:300],
+        'check_status': check_resp.status_code,
+        'check_data': check_resp.json() if check_resp.status_code == 200 else check_resp.text[:300]
+    })
+
 @app.route('/api/check-company')
 def check_company():
     inn = request.args.get('inn')
@@ -21,7 +35,6 @@ def check_company():
         resp = requests.get('https://api-fns.ru/api/egr', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
         data = resp.json()
         
-        # Базовая структура (которая работала)
         result = {
             'inn': inn, 'name': 'Неизвестно', 'ogrn': '', 'status': 'Неизвестно', 
             'risk': 0, 'risk_factors': [], 'address': '',
@@ -42,7 +55,6 @@ def check_company():
                 result['ogrn'] = ul.get('ОГРН', '')
                 result['address'] = ul.get('Адрес', {}).get('АдресПолн', '')
         
-        # Добавляем check
         try:
             check_resp = requests.get('https://api-fns.ru/api/check', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
             check_data = check_resp.json()
@@ -57,7 +69,6 @@ def check_company():
         except:
             pass
         
-        # Добавляем bo
         try:
             bo_resp = requests.get('https://api-fns.ru/api/bo', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
             bo_data = bo_resp.json()
