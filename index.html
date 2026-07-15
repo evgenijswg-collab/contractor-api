@@ -18,8 +18,7 @@
         .stat:first-child { border-left: none; }
         .stat-value { font-size: 18px; font-weight: 700; }
         .stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; }
-        .stat-danger { color: var(--danger); }
-        .stat-warning { color: var(--warning); }
+        .stat-danger { color: var(--danger); } .stat-warning { color: var(--warning); }
         .main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
         .layout { display: grid; grid-template-columns: 250px 1fr 300px; gap: 20px; align-items: start; }
         .card { background: var(--white); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
@@ -161,7 +160,7 @@
                 contractors: [], anomalies: [], isChecking: false,
                 
                 init() {
-                    const saved = localStorage.getItem('cdata_v5');
+                    const saved = localStorage.getItem('cdata_v6');
                     if (saved) {
                         const data = JSON.parse(saved);
                         this.contractors = data.contractors || [];
@@ -170,7 +169,7 @@
                 },
                 
                 save() {
-                    localStorage.setItem('cdata_v5', JSON.stringify({
+                    localStorage.setItem('cdata_v6', JSON.stringify({
                         contractors: this.contractors,
                         anomalies: this.anomalies
                     }));
@@ -239,6 +238,22 @@
                             if (!prev.ens_debt && d.ens_debt) {
                                 this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'RISK', description: 'Появилась задолженность по ЕНС' });
                             }
+                            
+                            // Сохраняем в Google Таблицу
+                            try {
+                                await fetch(`${API_URL}/api/save-check`, {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({
+                                        date: now, inn: this.contractors[i].inn, name: d.name,
+                                        status: d.status, risk: d.risk, ens_debt: d.ens_debt,
+                                        blocked: d.blocked, suspended: d.suspended,
+                                        revenue: d.revenue, profit: d.profit,
+                                        anomalies: this.anomalies.filter(a => a.inn === this.contractors[i].inn)
+                                    })
+                                });
+                            } catch (e) {}
+                            
                         } catch (e) {}
                         await new Promise(r => setTimeout(r, 300));
                     }
