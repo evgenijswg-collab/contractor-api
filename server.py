@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import os
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -11,20 +12,6 @@ FNS_API_KEY = os.environ.get('FNS_API_KEY')
 @app.route('/')
 def home():
     return jsonify({'status': 'ok'})
-
-@app.route('/api/debug')
-def debug():
-    inn = request.args.get('inn', '7724320985')
-    
-    bo_resp = requests.get('https://api-fns.ru/api/bo', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
-    check_resp = requests.get('https://api-fns.ru/api/check', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
-    
-    return jsonify({
-        'bo_status': bo_resp.status_code,
-        'bo_data': bo_resp.json() if bo_resp.status_code == 200 else bo_resp.text[:300],
-        'check_status': check_resp.status_code,
-        'check_data': check_resp.json() if check_resp.status_code == 200 else check_resp.text[:300]
-    })
 
 @app.route('/api/check-company')
 def check_company():
@@ -55,29 +42,47 @@ def check_company():
                 result['ogrn'] = ul.get('ОГРН', '')
                 result['address'] = ul.get('Адрес', {}).get('АдресПолн', '')
         
+        # CHECK
         try:
             check_resp = requests.get('https://api-fns.ru/api/check', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
             check_data = check_resp.json()
-            if isinstance(check_data, list) and check_data:
-                cr = check_data[0]
-                ci = cr.get('items', [])
-                if ci:
-                    c = ci[0]
-                    if c.get('ЗадолженностьЕНС'): result['ens_debt'] = 'Есть'; result['risk'] += 25
-                    if c.get('БлокировкаСчетов'): result['blocked'] = True; result['risk'] += 35
-                    if c.get('ПриостановкаОпераций'): result['suspended'] = True; result['risk'] += 30
+            if isinstance(check_data, dict) and 'items' in check_data:
+                items_list = check_data['items']
+                if items_list:
+                    c = items_list[0]
+                    ul_check = c.get('ЮЛ', {})
+                    if ul_check:
+                        neg = ul_check.get('Негатив', {})
+                        
+                        # Задолженность по ЕНС
+                        ned = neg.get('НедоимкаНалог', '')
+                        if ned and 'Да' in str(ned):
+                            match = re.search(r'([\d.]+)', str(ned))
+                            if match:
+                                result['ens_debt'] = f"{float(match.group(1)):,.0f} ₽"
+                            else:
+                                result['ens_debt'] = 'Есть'
+                            result['risk'] += 25
+                        
+                        # Блокировка счетов
+                        if neg.get('Обременения') == 'Да':
+                            result['blocked'] = True
+                            result['risk'] += 35
         except:
             pass
         
+        # BO
         try:
             bo_resp = requests.get('https://api-fns.ru/api/bo', params={'req': inn, 'key': FNS_API_KEY}, timeout=10)
             bo_data = bo_resp.json()
-            if isinstance(bo_data, list) and bo_data:
-                br = bo_data[0] if bo_data else {}
-                bi = br.get('items', []) if isinstance(br, dict) else []
-                if bi:
-                    result['revenue'] = bi[0].get('Выручка')
-                    result['profit'] = bi[0].get('ЧистаяПрибыль')
+            if isinstance(bo_data, dict) and inn in bo_data:
+                years = bo_data[inn]
+                last_year = sorted(years.keys())[-1]
+                year_data = years[last_year]
+                rev = year_data.get('2110')
+                prof = year_data.get('2400')
+                if rev: result['revenue'] = f"{float(rev):,.0f} ₽"
+                if prof: result['profit'] = f"{float(prof):,.0f} ₽"
         except:
             pass
         
