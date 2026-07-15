@@ -72,7 +72,6 @@
     
     <main class="main">
         <div class="layout">
-            
             <div>
                 <div class="card">
                     <div class="card-header">Добавить</div>
@@ -93,8 +92,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>ИНН</th><th>Наименование</th><th>Выручка</th><th>Прибыль</th><th>Риск</th>
-                                <th>ЕНС</th><th>Блокировка</th><th>Приостановка</th><th></th>
+                                <th>ИНН</th><th>Наименование</th><th>Статус</th><th>Выручка</th><th>Прибыль</th><th>Риск</th><th>ЕНС</th><th>Блокировка</th><th>Приостановка</th><th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -102,11 +100,9 @@
                                 <tr>
                                     <td style="font-family:monospace;" x-text="c.inn"></td>
                                     <td x-text="c.name || '—'"></td>
+                                    <td><span :class="c.status === 'Действующее' ? 'text-green' : 'text-red'" x-text="c.status || '—'"></span></td>
                                     <td x-text="c.revenue || '—'"></td>
-                                    <td>
-                                        <span x-show="c.profit" :class="c.profit.includes('-') ? 'text-red' : 'text-green'" x-text="c.profit"></span>
-                                        <span x-show="!c.profit">—</span>
-                                    </td>
+                                    <td><span x-show="c.profit" :class="c.profit_raw < 0 ? 'text-red' : 'text-green'" x-text="c.profit"></span><span x-show="!c.profit">—</span></td>
                                     <td><span class="badge" :class="(c.risk||0) < 30 ? 'badge-ok' : (c.risk||0) < 60 ? 'badge-warn' : 'badge-danger'" x-text="(c.risk||0)+'/100'"></span></td>
                                     <td><span x-show="c.ens_debt" class="alert alert-danger" x-text="c.ens_debt"></span><span x-show="!c.ens_debt">—</span></td>
                                     <td><span x-show="c.blocked" class="alert alert-danger">🔒 Да</span><span x-show="!c.blocked">—</span></td>
@@ -116,17 +112,14 @@
                             </template>
                         </tbody>
                     </table>
-                    <div class="empty" x-show="contractors.length === 0">Нет контрагентов. Добавьте ИНН.</div>
+                    <div class="empty" x-show="contractors.length === 0">Нет контрагентов.</div>
                 </div>
             </div>
             
             <div class="card">
-                <div class="card-header" style="border-bottom-color: #fecaca;">
-                    ⚠️ Аномалии
-                    <span x-show="anomalies.length > 0" style="background:#fef2f2;color:var(--danger);padding:2px 8px;border-radius:10px;font-size:11px;" x-text="anomalies.length"></span>
-                </div>
-                <div class="anomaly-list" x-show="anomalies.length > 0" style="padding:10px 12px;">
-                    <template x-for="a in anomalies.slice().reverse()" :key="a.date + a.inn">
+                <div class="card-header" style="border-bottom-color: #fecaca;">⚠️ Аномалии<span x-show="anomalies.length" style="background:#fef2f2;color:var(--danger);padding:2px 8px;border-radius:10px;font-size:11px;" x-text="anomalies.length"></span></div>
+                <div class="anomaly-list" x-show="anomalies.length" style="padding:10px 12px;">
+                    <template x-for="a in anomalies.slice().reverse()" :key="a.date + a.inn + a.type">
                         <div class="anomaly-item" :class="a.type === 'STATUS' ? 'anomaly-status' : a.type === 'BLOCK' ? 'anomaly-block' : 'anomaly-risk'">
                             <div class="anomaly-date" x-text="a.date"></div>
                             <div class="anomaly-name" x-text="a.name"></div>
@@ -134,25 +127,28 @@
                         </div>
                     </template>
                 </div>
-                <div class="empty" x-show="anomalies.length === 0">Аномалий не обнаружено.</div>
+                <div class="empty" x-show="!anomalies.length">Аномалий не обнаружено.</div>
             </div>
-            
         </div>
     </main>
     
     <script>
         const API_URL = 'https://contractor-api-vv9f.onrender.com';
         
-        function formatMoney(val) {
+        function parseMoney(val) {
             if (!val) return null;
-            // Убираем всё кроме цифр и точки
-            const num = parseFloat(String(val).replace(/[^\d.]/g, ''));
-            if (isNaN(num)) return val;
-            // Если больше миллиона — в млн
-            if (Math.abs(num) >= 1000000) {
-                return (num / 1000000).toFixed(0) + ' млн ₽';
-            }
-            // В тысячах
+            const str = String(val).replace(/[^\d.-]/g, '');
+            const num = parseFloat(str);
+            if (isNaN(num)) return null;
+            return num;
+        }
+        
+        function formatMoney(val) {
+            const num = parseMoney(val);
+            if (num === null) return null;
+            const abs = Math.abs(num);
+            if (abs >= 1e6) return (num / 1e6).toFixed(1) + ' млн ₽';
+            if (abs >= 1e3) return (num / 1e3).toFixed(0) + ' тыс ₽';
             return num.toLocaleString('ru-RU') + ' ₽';
         }
         
@@ -162,7 +158,7 @@
                 contractors: [], anomalies: [], isChecking: false,
                 
                 init() {
-                    const saved = localStorage.getItem('cdata_full');
+                    const saved = localStorage.getItem('cdata_v4');
                     if (saved) {
                         const data = JSON.parse(saved);
                         this.contractors = data.contractors || [];
@@ -171,7 +167,7 @@
                 },
                 
                 save() {
-                    localStorage.setItem('cdata_full', JSON.stringify({
+                    localStorage.setItem('cdata_v4', JSON.stringify({
                         contractors: this.contractors,
                         anomalies: this.anomalies
                     }));
@@ -187,13 +183,13 @@
                         const d = await r.json();
                         if (d.error) { this.lastError = d.error; }
                         else {
+                            const revRaw = parseMoney(d.revenue);
+                            const profRaw = parseMoney(d.profit);
                             this.contractors.push({
                                 inn, name: d.name, risk: d.risk, status: d.status,
-                                revenue: formatMoney(d.revenue),
-                                profit: formatMoney(d.profit),
-                                ens_debt: d.ens_debt,
-                                blocked: d.blocked,
-                                suspended: d.suspended
+                                revenue: formatMoney(d.revenue), revenue_raw: revRaw,
+                                profit: formatMoney(d.profit), profit_raw: profRaw,
+                                ens_debt: formatMoney(d.ens_debt), blocked: d.blocked, suspended: d.suspended
                             });
                             this.lastAdded = '✓ ' + d.name; this.newInn = ''; this.save();
                         }
@@ -214,8 +210,8 @@
                             if (d.error) continue;
                             
                             const prev = {
-                                status: this.contractors[i].status,
                                 risk: this.contractors[i].risk,
+                                status: this.contractors[i].status,
                                 blocked: this.contractors[i].blocked,
                                 ens_debt: this.contractors[i].ens_debt
                             };
@@ -225,20 +221,18 @@
                             this.contractors[i].status = d.status;
                             this.contractors[i].revenue = formatMoney(d.revenue);
                             this.contractors[i].profit = formatMoney(d.profit);
-                            this.contractors[i].ens_debt = d.ens_debt;
+                            this.contractors[i].profit_raw = parseMoney(d.profit);
+                            this.contractors[i].ens_debt = formatMoney(d.ens_debt);
                             this.contractors[i].blocked = d.blocked;
                             this.contractors[i].suspended = d.suspended;
                             
                             const name = d.name;
                             const now = new Date().toLocaleString('ru-RU');
                             
-                            if (prev.status && prev.status !== d.status) {
-                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'STATUS', description: `Статус: ${prev.status} → ${d.status}` });
-                            }
-                            if (prev.risk !== null && d.risk - prev.risk >= 15) {
+                            if (prev.risk !== null && prev.risk > 0 && d.risk - prev.risk >= 15) {
                                 this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'RISK', description: `Риск вырос: ${prev.risk} → ${d.risk}` });
                             }
-                            if (!prev.blocked && d.blocked) {
+                            if (prev.blocked === false && d.blocked === true) {
                                 this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'BLOCK', description: 'Счета заблокированы!' });
                             }
                             if (!prev.ens_debt && d.ens_debt) {
