@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг контрагентов</title>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        :root {
+            --bg: #f5f6f8; --white: #ffffff; --border: #e2e5eb;
+            --text: #1a1a1a; --text-secondary: #6b7280;
+            --primary: #2563eb; --primary-hover: #1d4ed8;
+            --success: #059669; --warning: #d97706; --danger: #dc2626;
+            --success-bg: #ecfdf5; --warning-bg: #fffbeb; --danger-bg: #fef2f2;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.5;
+        }
+        .header {
+            background: var(--white); border-bottom: 1px solid var(--border);
+            padding: 0 24px; height: 56px; display: flex; align-items: center;
+            justify-content: space-between; position: sticky; top: 0; z-index: 10;
+        }
+        .header-title { font-size: 15px; font-weight: 600; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px;
+            border: none; border-radius: 5px; font-size: 12px; font-weight: 500;
+            cursor: pointer; font-family: inherit; white-space: nowrap;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-danger { background: none; color: var(--danger); padding: 4px 8px; font-size: 11px; border: none; cursor: pointer; }
+        .btn-danger:hover { background: var(--danger-bg); border-radius: 4px; }
+        .stat { text-align: center; padding: 0 14px; border-left: 1px solid var(--border); }
+        .stat:first-child { border-left: none; }
+        .stat-value { font-size: 18px; font-weight: 700; }
+        .stat-label { font-size: 10px; color: var(--text-secondary); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .stat-danger { color: var(--danger); } .stat-warning { color: var(--warning); }
+        .main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+        .layout { display: grid; grid-template-columns: 280px 1fr 320px; gap: 20px; align-items: start; }
+        .card { background: var(--white); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .card-header {
+            padding: 12px 16px; border-bottom: 1px solid var(--border);
+            font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-body { padding: 16px; }
+        .input {
+            width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+            border-radius: 5px; font-size: 13px; font-family: inherit; outline: none;
+        }
+        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.08); }
+        .field { margin-bottom: 10px; }
+        .field label { display: block; font-size: 11px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .toast { font-size: 11px; margin-top: 6px; }
+        .toast-success { color: var(--success); }
+        .toast-error { color: var(--danger); }
+        .table-wrap { max-height: calc(100vh - 180px); overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th {
+            text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600;
+            color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px;
+            border-bottom: 2px solid var(--border); position: sticky; top: 0; background: var(--white); z-index: 1;
+        }
+        td { padding: 8px 10px; border-bottom: 1px solid #f0f1f3; }
+        tr:hover td { background: #fafbfc; }
+        .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+        .badge-ok { background: var(--success-bg); color: var(--success); }
+        .badge-warn { background: var(--warning-bg); color: var(--warning); }
+        .badge-danger { background: var(--danger-bg); color: var(--danger); }
+        .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+        .dot-ok { background: var(--success); } .dot-warn { background: var(--warning); } .dot-danger { background: var(--danger); }
+        .anomaly-list { max-height: calc(100vh - 180px); overflow-y: auto; }
+        .anomaly-item {
+            padding: 10px 12px; border-left: 3px solid; margin-bottom: 6px;
+            background: #fafbfc; border-radius: 0 4px 4px 0; font-size: 11px;
+        }
+        .anomaly-risk { border-left-color: var(--warning); }
+        .anomaly-debt { border-left-color: #f97316; }
+        .anomaly-bankrupt { border-left-color: #991b1b; background: #fef2f2; }
+        .anomaly-date { color: var(--text-secondary); margin-bottom: 2px; }
+        .anomaly-name { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
+        .anomaly-desc { color: var(--text-secondary); }
+        .anomaly-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-bottom: 4px; }
+        .anomaly-badge-bankrupt { background: #fef2f2; color: #991b1b; }
+        .anomaly-badge-debt { background: #fff7ed; color: #c2410c; }
+        .anomaly-badge-risk { background: #fffbeb; color: #b45309; }
+        .empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 12px; }
+        .btn-delete {
+            background: none; border: none; color: #9ca3af; cursor: pointer;
+            padding: 4px 6px; border-radius: 4px; font-size: 14px; line-height: 1;
+            transition: all 0.15s;
+        }
+        .btn-delete:hover { color: #ef4444; background: #fef2f2; }
+    </style>
+</head>
+<body x-data="app()" x-init="init()">
+    
+    <header class="header">
+        <div style="display: flex; align-items: baseline;">
+            <span class="header-title">Мониторинг контрагентов</span>
+            <span style="font-size: 11px; color: var(--text-secondary); margin-left: 6px;">v2.0 API ФНС</span>
+        </div>
+        
+        <div style="display: flex; align-items: center;">
+            <div class="stat">
+                <div class="stat-value" x-text="contractors.length">0</div>
+                <div class="stat-label">всего</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-warning" x-text="highRiskCount()">0</div>
+                <div class="stat-label">риск</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value stat-danger" x-text="anomalies.length">0</div>
+                <div class="stat-label">аномалий</div>
+            </div>
+        </div>
+        
+        <button class="btn btn-primary" @click="checkAll()" 
+                :disabled="isChecking || contractors.length === 0">
+            Запустить проверку
+        </button>
+    </header>
+    
+    <main class="main">
+        <div class="layout">
+            
+            <!-- ЛЕВАЯ КОЛОНКА -->
+            <div>
+                <div class="card">
+                    <div class="card-header">Добавить контрагента</div>
+                    <div class="card-body">
+                        <div class="field">
+                            <label>ИНН организации</label>
+                            <input type="text" class="input" x-model="newInn" 
+                                   @keyup.enter="addContractor()"
+                                   placeholder="10 или 12 цифр" maxlength="12">
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%; justify-content: center;" 
+                                @click="addContractor()"
+                                :disabled="!newInn || newInn.length < 10 || isAdding">
+                            <span x-show="!isAdding">Добавить</span>
+                            <span x-show="isAdding">Загрузка...</span>
+                        </button>
+                        <div class="toast toast-success" x-show="lastAdded" x-text="lastAdded"></div>
+                        <div class="toast toast-error" x-show="lastError" x-text="lastError"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ЦЕНТР: Таблица -->
+            <div class="card">
+                <div class="card-header">
+                    Контрагенты на наблюдении
+                    <span style="font-weight: 400; color: var(--text-secondary);" x-text="contractors.length + ' зап.'"></span>
+                </div>
+                
+                <div class="table-wrap" x-show="contractors.length > 0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 110px;">ИНН</th>
+                                <th>Наименование</th>
+                                <th style="width: 55px;">Риск</th>
+                                <th style="width: 80px;">Статус</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(c, idx) in contractors" :key="c.inn">
+                                <tr>
+                                    <td style="font-family: monospace;" x-text="c.inn"></td>
+                                    <td>
+                                        <div x-text="c.name || '—'"></div>
+                                        <div x-show="c.ogrn" style="font-size: 10px; color: var(--text-secondary);" x-text="'ОГРН ' + c.ogrn"></div>
+                                    </td>
+                                    <td>
+                                        <span x-show="c.risk !== null" class="badge" 
+                                              :class="c.risk < 30 ? 'badge-ok' : c.risk < 60 ? 'badge-warn' : 'badge-danger'"
+                                              x-text="c.risk + '/100'"></span>
+                                        <span x-show="c.risk === null" style="color: var(--text-secondary);">—</span>
+                                    </td>
+                                    <td>
+                                        <span x-show="c.status">
+                                            <span class="dot" :class="c.status === 'Действующее' ? 'dot-ok' : 'dot-danger'"></span>
+                                            <span x-text="c.status"></span>
+                                        </span>
+                                        <span x-show="!c.status" style="color: var(--text-secondary);">—</span>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <button class="btn-delete" @click="removeContractor(idx)" title="Удалить">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="empty" x-show="contractors.length === 0">
+                    Нет контрагентов.<br>Добавьте ИНН для проверки через API ФНС.
+                </div>
+            </div>
+            
+            <!-- ПРАВАЯ КОЛОНКА: Аномалии -->
+            <div class="card">
+                <div class="card-header" style="border-bottom-color: #fecaca;">
+                    ⚠️ Обнаруженные аномалии
+                    <span x-show="anomalies.length > 0" 
+                          style="background: #fef2f2; color: var(--danger); padding: 2px 8px; border-radius: 10px; font-size: 11px;"
+                          x-text="anomalies.length"></span>
+                </div>
+                
+                <div class="anomaly-list" x-show="anomalies.length > 0" style="padding: 10px 12px;">
+                    <template x-for="a in anomalies.slice().reverse()" :key="a.date + a.inn + a.type">
+                        <div class="anomaly-item" 
+                             :class="a.type === 'BANKRUPTCY' ? 'anomaly-bankrupt' : a.type.includes('DEBT') ? 'anomaly-debt' : 'anomaly-risk'">
+                            <div class="anomaly-badge"
+                                 :class="a.type === 'BANKRUPTCY' ? 'anomaly-badge-bankrupt' : a.type.includes('DEBT') ? 'anomaly-badge-debt' : 'anomaly-badge-risk'"
+                                 x-text="a.type"></div>
+                            <div class="anomaly-date" x-text="a.date"></div>
+                            <div class="anomaly-name" x-text="a.name"></div>
+                            <div class="anomaly-desc" x-text="a.description"></div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="empty" x-show="anomalies.length === 0">
+                    Аномалий не обнаружено.
+                </div>
+            </div>
+            
+        </div>
+    </main>
+    
+    <script>
+        const API_URL = 'https://contractor-api-vv9f.onrender.com';
+        
+        function app() {
+            return {
+                newInn: '', lastAdded: '', lastError: '', isAdding: false,
+                contractors: [], anomalies: [], isChecking: false,
+                
+                init() {
+                    const saved = localStorage.getItem('contractor_data');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        this.contractors = data.contractors || [];
+                        this.anomalies = data.anomalies || [];
+                    }
+                },
+                
+                save() {
+                    localStorage.setItem('contractor_data', JSON.stringify({
+                        contractors: this.contractors,
+                        anomalies: this.anomalies
+                    }));
+                },
+                
+                async addContractor() {
+                    const inn = this.newInn.trim();
+                    if (!inn || inn.length < 10) return;
+                    
+                    if (this.contractors.find(c => c.inn === inn)) {
+                        this.lastError = 'Этот ИНН уже в списке';
+                        return;
+                    }
+                    
+                    this.isAdding = true;
+                    this.lastError = '';
+                    
+                    try {
+                        const resp = await fetch(`${API_URL}/api/check-company?inn=${inn}`);
+                        const data = await resp.json();
+                        
+                        if (data.error) {
+                            this.lastError = data.error;
+                        } else {
+                            this.contractors.push({
+                                inn: inn,
+                                name: data.name,
+                                ogrn: data.ogrn,
+                                status: data.status,
+                                risk: data.risk,
+                                address: data.address,
+                                last_check: new Date().toISOString(),
+                                history: []
+                            });
+                            this.lastAdded = `✓ ${data.name} добавлен`;
+                            this.newInn = '';
+                            this.save();
+                        }
+                    } catch (e) {
+                        this.lastError = 'Ошибка соединения';
+                    }
+                    
+                    this.isAdding = false;
+                },
+                
+                removeContractor(idx) {
+                    this.contractors.splice(idx, 1);
+                    this.save();
+                },
+                
+                async checkAll() {
+                    if (this.isChecking || this.contractors.length === 0) return;
+                    this.isChecking = true;
+                    
+                    for (let i = 0; i < this.contractors.length; i++) {
+                        try {
+                            const resp = await fetch(`${API_URL}/api/check-company?inn=${this.contractors[i].inn}`);
+                            const data = await resp.json();
+                            
+                            if (data.error) continue;
+                            
+                            const prev = {
+                                risk: this.contractors[i].risk,
+                                status: this.contractors[i].status
+                            };
+                            
+                            this.contractors[i].name = data.name;
+                            this.contractors[i].ogrn = data.ogrn;
+                            this.contractors[i].status = data.status;
+                            this.contractors[i].risk = data.risk;
+                            this.contractors[i].address = data.address;
+                            this.contractors[i].last_check = new Date().toISOString();
+                            
+                            if (!this.contractors[i].history) this.contractors[i].history = [];
+                            this.contractors[i].history.push({
+                                date: new Date().toISOString(),
+                                risk: data.risk,
+                                status: data.status
+                            });
+                            
+                            // Аномалии
+                            if (prev.status && prev.status !== data.status) {
+                                this.anomalies.push({
+                                    date: new Date().toLocaleString('ru-RU'),
+                                    inn: this.contractors[i].inn,
+                                    name: data.name,
+                                    type: 'STATUS',
+                                    description: `Статус изменился: ${prev.status} → ${data.status}`
+                                });
+                            }
+                            
+                            if (prev.risk !== null && data.risk - prev.risk >= 15) {
+                                this.anomalies.push({
+                                    date: new Date().toLocaleString('ru-RU'),
+                                    inn: this.contractors[i].inn,
+                                    name: data.name,
+                                    type: 'RISK',
+                                    description: `Риск вырос: ${prev.risk} → ${data.risk}`
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Ошибка проверки:', e);
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                    
+                    this.isChecking = false;
+                    this.save();
+                },
+                
+                highRiskCount() {
+                    return this.contractors.filter(c => c.risk && c.risk >= 60).length;
+                },
+                
+                sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+            }
+        }
+    </script>
+</body>
+</html>
