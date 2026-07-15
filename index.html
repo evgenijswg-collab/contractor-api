@@ -9,107 +9,234 @@
         :root { --bg: #f5f6f8; --white: #fff; --border: #e2e5eb; --text: #1a1a1a; --text2: #6b7280; --primary: #2563eb; --danger: #dc2626; --warning: #d97706; --success: #059669; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
-        .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+        .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
         .header-title { font-size: 15px; font-weight: 600; }
         .btn { padding: 7px 14px; border: none; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; }
         .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:disabled { opacity: .4; }
+        .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
         .stat { text-align: center; padding: 0 14px; border-left: 1px solid var(--border); }
         .stat:first-child { border-left: none; }
         .stat-value { font-size: 18px; font-weight: 700; }
         .stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; }
+        .stat-danger { color: var(--danger); }
         .main { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
-        .layout { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
-        .card { background: var(--white); border: 1px solid var(--border); border-radius: 6px; }
-        .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+        .layout { display: grid; grid-template-columns: 250px 1fr 300px; gap: 20px; align-items: start; }
+        .card { background: var(--white); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .card-body { padding: 16px; }
         .input { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; outline: none; }
         .input:focus { border-color: var(--primary); }
         .field { margin-bottom: 10px; }
         .field label { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .toast-success { color: var(--success); font-size: 11px; margin-top: 6px; }
-        .toast-error { color: var(--danger); font-size: 11px; margin-top: 6px; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600; color: var(--text2); text-transform: uppercase; border-bottom: 2px solid var(--border); }
-        td { padding: 8px 10px; border-bottom: 1px solid #f0f1f3; }
+        .toast { font-size: 11px; margin-top: 6px; }
+        .toast-success { color: var(--success); } .toast-error { color: var(--danger); }
+        .table-wrap { max-height: calc(100vh - 200px); overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 600; color: var(--text2); text-transform: uppercase; border-bottom: 2px solid var(--border); white-space: nowrap; position: sticky; top: 0; background: var(--white); }
+        td { padding: 6px 8px; border-bottom: 1px solid #f0f1f3; }
         tr:hover td { background: #fafbfc; }
-        .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; }
         .badge-ok { background: #ecfdf5; color: var(--success); }
         .badge-warn { background: #fffbeb; color: var(--warning); }
         .badge-danger { background: #fef2f2; color: var(--danger); }
+        .alert { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; }
+        .alert-danger { background: #fef2f2; color: var(--danger); }
+        .alert-warning { background: #fffbeb; color: var(--warning); }
         .btn-delete { background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
-        .btn-delete:hover { color: #ef4444; }
+        .btn-delete:hover { color: #ef4444; background: #fef2f2; }
+        .anomaly-list { max-height: calc(100vh - 200px); overflow-y: auto; }
+        .anomaly-item { padding: 10px 12px; border-left: 3px solid; margin-bottom: 6px; background: #fafbfc; border-radius: 0 4px 4px 0; font-size: 11px; }
+        .anomaly-status { border-left-color: var(--danger); }
+        .anomaly-risk { border-left-color: var(--warning); }
+        .anomaly-block { border-left-color: #991b1b; background: #fef2f2; }
+        .anomaly-date { color: var(--text2); margin-bottom: 2px; }
+        .anomaly-name { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
+        .anomaly-desc { color: var(--text2); }
+        .empty { text-align: center; padding: 24px; color: var(--text2); font-size: 12px; }
     </style>
 </head>
 <body x-data="app()" x-init="init()">
+    
     <header class="header">
         <span class="header-title">Мониторинг контрагентов</span>
         <div style="display: flex;">
             <div class="stat"><div class="stat-value" x-text="contractors.length">0</div><div class="stat-label">всего</div></div>
+            <div class="stat"><div class="stat-value stat-danger" x-text="anomalies.length">0</div><div class="stat-label">аномалий</div></div>
         </div>
-        <button class="btn btn-primary" @click="checkAll()" :disabled="isChecking || contractors.length === 0">Запустить проверку</button>
+        <button class="btn btn-primary" @click="checkAll()" :disabled="isChecking || contractors.length === 0">
+            <span x-show="!isChecking">Запустить проверку</span>
+            <span x-show="isChecking">⏳ Проверка...</span>
+        </button>
     </header>
+    
     <main class="main">
         <div class="layout">
+            
+            <!-- ЛЕВАЯ КОЛОНКА -->
             <div>
                 <div class="card">
                     <div class="card-header">Добавить</div>
                     <div class="card-body">
                         <div class="field"><label>ИНН</label><input type="text" class="input" x-model="newInn" @keyup.enter="addContractor()" placeholder="10 или 12 цифр" maxlength="12"></div>
-                        <button class="btn btn-primary" style="width:100%;" @click="addContractor()" :disabled="!newInn || newInn.length < 10 || isAdding">Добавить</button>
-                        <div class="toast-success" x-show="lastAdded" x-text="lastAdded"></div>
-                        <div class="toast-error" x-show="lastError" x-text="lastError"></div>
+                        <button class="btn btn-primary" style="width:100%;" @click="addContractor()" :disabled="!newInn || newInn.length < 10 || isAdding">
+                            <span x-show="!isAdding">Добавить</span><span x-show="isAdding">Загрузка...</span>
+                        </button>
+                        <div class="toast toast-success" x-show="lastAdded" x-text="lastAdded"></div>
+                        <div class="toast toast-error" x-show="lastError" x-text="lastError"></div>
                     </div>
                 </div>
             </div>
+            
+            <!-- ЦЕНТР: Таблица -->
             <div class="card">
-                <div class="card-header">Контрагенты</div>
-                <table>
-                    <thead><tr><th>ИНН</th><th>Название</th><th>Статус</th><th>Риск</th><th></th></tr></thead>
-                    <tbody>
-                        <template x-for="(c, idx) in contractors" :key="c.inn">
+                <div class="card-header">Контрагенты <span style="font-weight:400;color:var(--text2);" x-text="contractors.length"></span></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
                             <tr>
-                                <td style="font-family:monospace;" x-text="c.inn"></td>
-                                <td x-text="c.name"></td>
-                                <td x-text="c.status"></td>
-                                <td><span class="badge" :class="c.risk < 30 ? 'badge-ok' : c.risk < 60 ? 'badge-warn' : 'badge-danger'" x-text="(c.risk||0)+'/100'"></span></td>
-                                <td><button class="btn-delete" @click="removeContractor(idx)">✕</button></td>
+                                <th>ИНН</th><th>Наименование</th><th>Выручка</th><th>Прибыль</th><th>Риск</th>
+                                <th>ЕНС</th><th>Блокировка</th><th>Приостановка</th><th></th>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <template x-for="(c, idx) in contractors" :key="c.inn">
+                                <tr>
+                                    <td style="font-family:monospace;" x-text="c.inn"></td>
+                                    <td x-text="c.name || '—'"></td>
+                                    <td x-text="c.revenue ? c.revenue + ' ₽' : '—'"></td>
+                                    <td x-text="c.profit ? c.profit + ' ₽' : '—'"></td>
+                                    <td><span class="badge" :class="(c.risk||0) < 30 ? 'badge-ok' : (c.risk||0) < 60 ? 'badge-warn' : 'badge-danger'" x-text="(c.risk||0)+'/100'"></span></td>
+                                    <td><span x-show="c.ens_debt" class="alert alert-danger">Задолженность</span><span x-show="!c.ens_debt">—</span></td>
+                                    <td><span x-show="c.blocked" class="alert alert-danger">🔒 Да</span><span x-show="!c.blocked">—</span></td>
+                                    <td><span x-show="c.suspended" class="alert alert-warning">⏸ Да</span><span x-show="!c.suspended">—</span></td>
+                                    <td><button class="btn-delete" @click="removeContractor(idx)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div class="empty" x-show="contractors.length === 0">Нет контрагентов. Добавьте ИНН.</div>
+                </div>
             </div>
+            
+            <!-- ПРАВАЯ КОЛОНКА: Аномалии -->
+            <div class="card">
+                <div class="card-header" style="border-bottom-color: #fecaca;">
+                    ⚠️ Аномалии
+                    <span x-show="anomalies.length > 0" style="background:#fef2f2;color:var(--danger);padding:2px 8px;border-radius:10px;font-size:11px;" x-text="anomalies.length"></span>
+                </div>
+                <div class="anomaly-list" x-show="anomalies.length > 0" style="padding:10px 12px;">
+                    <template x-for="a in anomalies.slice().reverse()" :key="a.date + a.inn">
+                        <div class="anomaly-item" :class="a.type === 'STATUS' ? 'anomaly-status' : a.type === 'BLOCK' ? 'anomaly-block' : 'anomaly-risk'">
+                            <div class="anomaly-date" x-text="a.date"></div>
+                            <div class="anomaly-name" x-text="a.name"></div>
+                            <div class="anomaly-desc" x-text="a.description"></div>
+                        </div>
+                    </template>
+                </div>
+                <div class="empty" x-show="anomalies.length === 0">Аномалий не обнаружено.</div>
+            </div>
+            
         </div>
     </main>
+    
     <script>
         const API_URL = 'https://contractor-api-vv9f.onrender.com';
+        
         function app() {
             return {
-                newInn: '', lastAdded: '', lastError: '', isAdding: false, contractors: [], isChecking: false,
-                init() { const s = localStorage.getItem('cdata'); if (s) this.contractors = JSON.parse(s); },
-                save() { localStorage.setItem('cdata', JSON.stringify(this.contractors)); },
+                newInn: '', lastAdded: '', lastError: '', isAdding: false,
+                contractors: [], anomalies: [], isChecking: false,
+                
+                init() {
+                    const saved = localStorage.getItem('cdata_full');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        this.contractors = data.contractors || [];
+                        this.anomalies = data.anomalies || [];
+                    }
+                },
+                
+                save() {
+                    localStorage.setItem('cdata_full', JSON.stringify({
+                        contractors: this.contractors,
+                        anomalies: this.anomalies
+                    }));
+                },
+                
                 async addContractor() {
-                    const inn = this.newInn.trim(); if (!inn || inn.length < 10) return;
+                    const inn = this.newInn.trim();
+                    if (!inn || inn.length < 10) return;
                     if (this.contractors.find(c => c.inn === inn)) { this.lastError = 'Уже в списке'; return; }
                     this.isAdding = true; this.lastError = '';
                     try {
-                        const r = await fetch(`${API_URL}/api/check-company?inn=${inn}`); const d = await r.json();
+                        const r = await fetch(`${API_URL}/api/check-company?inn=${inn}`);
+                        const d = await r.json();
                         if (d.error) { this.lastError = d.error; }
-                        else { this.contractors.push({ inn, name: d.name, status: d.status, risk: d.risk }); this.lastAdded = '✓ '+d.name; this.newInn = ''; this.save(); }
-                    } catch (e) { this.lastError = 'Ошибка'; }
+                        else {
+                            this.contractors.push({
+                                inn, name: d.name, risk: d.risk, status: d.status,
+                                revenue: d.revenue, profit: d.profit,
+                                ens_debt: d.ens_debt, blocked: d.blocked, suspended: d.suspended
+                            });
+                            this.lastAdded = '✓ ' + d.name; this.newInn = ''; this.save();
+                        }
+                    } catch (e) { this.lastError = 'Ошибка соединения'; }
                     this.isAdding = false;
                 },
+                
                 removeContractor(idx) { this.contractors.splice(idx, 1); this.save(); },
+                
                 async checkAll() {
-                    if (this.isChecking || !this.contractors.length) return; this.isChecking = true;
+                    if (this.isChecking || !this.contractors.length) return;
+                    this.isChecking = true;
+                    
                     for (let i = 0; i < this.contractors.length; i++) {
                         try {
-                            const r = await fetch(`${API_URL}/api/check-company?inn=${this.contractors[i].inn}`); const d = await r.json();
-                            if (!d.error) { this.contractors[i].name = d.name; this.contractors[i].status = d.status; this.contractors[i].risk = d.risk; }
+                            const r = await fetch(`${API_URL}/api/check-company?inn=${this.contractors[i].inn}`);
+                            const d = await r.json();
+                            if (d.error) continue;
+                            
+                            const prev = {
+                                status: this.contractors[i].status,
+                                risk: this.contractors[i].risk,
+                                blocked: this.contractors[i].blocked,
+                                suspended: this.contractors[i].suspended,
+                                ens_debt: this.contractors[i].ens_debt
+                            };
+                            
+                            this.contractors[i].name = d.name;
+                            this.contractors[i].risk = d.risk;
+                            this.contractors[i].status = d.status;
+                            this.contractors[i].revenue = d.revenue;
+                            this.contractors[i].profit = d.profit;
+                            this.contractors[i].ens_debt = d.ens_debt;
+                            this.contractors[i].blocked = d.blocked;
+                            this.contractors[i].suspended = d.suspended;
+                            
+                            // Аномалии
+                            const name = d.name;
+                            const now = new Date().toLocaleString('ru-RU');
+                            
+                            if (prev.status && prev.status !== d.status) {
+                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'STATUS', description: `Статус: ${prev.status} → ${d.status}` });
+                            }
+                            if (prev.risk !== null && d.risk - prev.risk >= 15) {
+                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'RISK', description: `Риск вырос: ${prev.risk} → ${d.risk}` });
+                            }
+                            if (!prev.blocked && d.blocked) {
+                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'BLOCK', description: 'Счета заблокированы!' });
+                            }
+                            if (!prev.suspended && d.suspended) {
+                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'BLOCK', description: 'Операции приостановлены' });
+                            }
+                            if (!prev.ens_debt && d.ens_debt) {
+                                this.anomalies.push({ date: now, inn: this.contractors[i].inn, name, type: 'RISK', description: 'Появилась задолженность по ЕНС' });
+                            }
                         } catch (e) {}
                         await new Promise(r => setTimeout(r, 300));
                     }
-                    this.isChecking = false; this.save();
+                    this.isChecking = false;
+                    this.save();
                 }
             }
         }
