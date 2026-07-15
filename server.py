@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import os
+import sys
 
 app = Flask(__name__)
 CORS(app)
@@ -22,29 +23,40 @@ def check_company():
     
     if not inn:
         return jsonify({'error': 'Укажите ИНН'}), 400
-    
+        
     if not FNS_API_KEY:
+        print("ОШИБКА: Переменная окружения FNS_API_KEY не настроена в Render!", file=sys.stderr, flush=True)
         return jsonify({'error': 'API ключ не настроен'}), 500
-    
+        
     try:
-        # ЕГРЮЛ/ЕГРИП
-        egr_resp = requests.get('https://api-fns.ru/api/egr', params={
+        # 1. Запрос к ЕГРЮЛ/ЕГРИП
+        print(f"[ЛОГ] Отправка запроса EGR для ИНН: {inn}", flush=True)
+        egr_resp = requests.get('https://api-fns.ru', params={
             'req': inn,
             'key': FNS_API_KEY
         }, timeout=10)
+        
+        print(f"[ЛОГ] Статус ответа EGR от API ФНС: {egr_resp.status_code}", flush=True)
         
         if egr_resp.status_code != 200:
+            print(f"[ЛОГ ОШИБКА] API ФНС вернул плохой статус: {egr_resp.text}", file=sys.stderr, flush=True)
             return jsonify({'error': f'API ФНС вернул {egr_resp.status_code}'}), 500
-        
+            
         raw_data = egr_resp.json()
+        # Выводим реальное тело ответа в логи Render
+        print(f"[ДЕБАГ EGR ОТВЕТ]: {raw_data}", flush=True)
         
-        # Проверка рисков
-        check_resp = requests.get('https://api-fns.ru/api/check', params={
+        # 2. Запрос к методу проверки рисков
+        print(f"[ЛОГ] Отправка запроса CHECK для ИНН: {inn}", flush=True)
+        check_resp = requests.get('https://api-fns.ru', params={
             'req': inn,
             'key': FNS_API_KEY
         }, timeout=10)
-        check_raw = check_resp.json() if check_resp.status_code == 200 else {}
         
+        check_raw = check_resp.json() if check_resp.status_code == 200 else {}
+        print(f"[ДЕБАГ CHECK ОТВЕТ]: {check_raw}", flush=True)
+        
+        # Инициализация структуры по умолчанию
         result = {
             'inn': inn,
             'name': 'Неизвестно',
@@ -61,7 +73,7 @@ def check_company():
             root_item = raw_data[0] if len(raw_data) > 0 else {}
         else:
             root_item = raw_data
-        
+            
         items = root_item.get('items', [])
         
         if items:
@@ -83,13 +95,15 @@ def check_company():
                 result['name'] = f'ИП {fio_string}' if fio_string else 'Неизвестно'
                 result['status'] = ip.get('Статус', 'Неизвестно')
                 result['address'] = ip.get('АдресПолн') or result['address']
-        
-        # УНИВЕРСАЛЬНАЯ НОРМАЛИЗАЦИЯ: список или словарь
+        else:
+            print("[ЛОГ ПРЕДУПРЕЖДЕНИЕ] Массив 'items' пуст или отсутствует в ответе EGR.", flush=True)
+                
+        # УНИВЕРСАЛЬНАЯ НОРМАЛИЗАЦИЯ ДЛЯ РИСКОВ
         if isinstance(check_raw, list):
             check_root = check_raw[0] if len(check_raw) > 0 else {}
         else:
             check_root = check_raw
-        
+            
         check_items = check_root.get('items', [])
         if check_items:
             checks = check_items[0]
@@ -107,14 +121,16 @@ def check_company():
         if result['status'] == 'Ликвидировано':
             result['risk'] = 100
             result['risk_factors'].append('Компания ликвидирована')
-        
+            
         result['risk'] = min(100, result['risk'])
         
         return jsonify(result)
-    
+        
     except requests.exceptions.Timeout:
+        print("[ЛОГ ОШИБКА] Произошел таймаут при запросе к api-fns.ru", file=sys.stderr, flush=True)
         return jsonify({'error': 'Таймаут API ФНС'}), 500
     except Exception as e:
+        print(f"[ЛОГ КРИТИЧЕСКАЯ ОШИБКА]: {str(e)}", file=sys.stderr, flush=True)
         return jsonify({'error': f'Ошибка: {str(e)}'}), 500
 
 if __name__ == '__main__':
