@@ -8,6 +8,7 @@ app = Flask(__name__)
 CORS(app)
 
 FNS_API_KEY = os.environ.get('FNS_API_KEY')
+GOOGLE_SCRIPT_URL = os.environ.get('GOOGLE_SCRIPT_URL')
 
 @app.route('/')
 def home():
@@ -54,20 +55,37 @@ def check_company():
                     if ul_check:
                         neg = ul_check.get('Негатив', {})
                         
-                        # Задолженность по ЕНС
                         ned = neg.get('НедоимкаНалог', '')
+                        debt_amount = 0
                         if ned and 'Да' in str(ned):
                             match = re.search(r'([\d.]+)', str(ned))
                             if match:
-                                result['ens_debt'] = f"{float(match.group(1)):,.0f} ₽"
+                                debt_amount = float(match.group(1))
+                                if debt_amount >= 1e6:
+                                    result['ens_debt'] = f"{debt_amount/1e6:.1f} млн ₽"
+                                else:
+                                    result['ens_debt'] = f"{debt_amount:,.0f} ₽"
                             else:
                                 result['ens_debt'] = 'Есть'
-                            result['risk'] += 25
+                            
+                            if debt_amount > 10_000_000:
+                                result['risk'] += 50
+                            elif debt_amount > 5_000_000:
+                                result['risk'] += 35
+                            elif debt_amount > 1_000_000:
+                                result['risk'] += 25
+                            elif debt_amount > 300_000:
+                                result['risk'] += 15
+                            else:
+                                result['risk'] += 10
                         
-                        # Блокировка счетов
                         if neg.get('Обременения') == 'Да':
                             result['blocked'] = True
                             result['risk'] += 35
+                        
+                        if neg.get('ПриостановкаОпераций') == 'Да':
+                            result['suspended'] = True
+                            result['risk'] += 30
         except:
             pass
         
@@ -88,6 +106,17 @@ def check_company():
         
         result['risk'] = min(100, result['risk'])
         return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/save-check', methods=['POST'])
+def save_check():
+    if not GOOGLE_SCRIPT_URL:
+        return jsonify({'error': 'GOOGLE_SCRIPT_URL not set'}), 500
+    try:
+        payload = request.get_json()
+        resp = requests.post(GOOGLE_SCRIPT_URL, json=payload, timeout=10)
+        return jsonify({'status': 'ok'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
