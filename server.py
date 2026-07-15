@@ -12,6 +12,11 @@ FNS_API_KEY = os.environ.get('FNS_API_KEY')
 def home():
     return jsonify({'status': 'ok'})
 
+@app.route('/my-ip')
+def my_ip():
+    resp = requests.get('https://api.ipify.org')
+    return jsonify({'ip': resp.text.strip()})
+
 @app.route('/api/check-company')
 def check_company():
     inn = request.args.get('inn')
