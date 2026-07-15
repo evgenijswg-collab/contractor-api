@@ -13,8 +13,7 @@ def home():
     return jsonify({
         'status': 'ok',
         'service': 'Contractor API',
-        'endpoints': ['/api/check-company?inn=ИНН'],
-        'fns_key_set': bool(FNS_API_KEY)
+        'endpoints': ['/api/check-company?inn=ИНН']
     })
 
 @app.route('/api/check-company')
@@ -28,102 +27,88 @@ def check_company():
         return jsonify({'error': 'API ключ не настроен'}), 500
     
     try:
-        # ЕГРЮЛ
+        # ЕГРЮЛ/ЕГРИП
         egr_resp = requests.get('https://api-fns.ru/api/egr', params={
             'req': inn,
             'key': FNS_API_KEY
         }, timeout=10)
         
         if egr_resp.status_code != 200:
-            return jsonify({
-                'error': f'API ФНС вернул {egr_resp.status_code}',
-                'raw': egr_resp.text[:200]
-            }), 500
+            return jsonify({'error': f'API ФНС вернул {egr_resp.status_code}'}), 500
         
-        egr_data = egr_resp.json()
+        raw_data = egr_resp.json()
         
-        # Проверка
+        # Проверка рисков
         check_resp = requests.get('https://api-fns.ru/api/check', params={
             'req': inn,
             'key': FNS_API_KEY
         }, timeout=10)
-        check_data = check_resp.json() if check_resp.status_code == 200 else {}
+        check_raw = check_resp.json() if check_resp.status_code == 200 else []
         
-        # Парсинг компании
-        company = egr_data.get('items', [{}])[0] if egr_data.get('items') else {}
-        checks = check_data.get('items', [{}])[0] if check_data.get('items') else {}
-        
-        # Юрлицо (UL) или ИП (IP)
-        ul = company.get('UL', {})
-        ip = company.get('IP', {})
-        
-        if ul:
-            name = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
-            ogrn = ul.get('ОГРН', '')
-            status = ul.get('Статус', 'Неизвестно')
-            address_data = ul.get('Адрес', {})
-            okved = ul.get('ОКВЭД', {}).get('Код', '') if isinstance(ul.get('ОКВЭД'), dict) else ''
-        elif ip:
-            fio = ip.get('ФИОРус', {})
-            name = f"ИП {fio.get('Фамилия', '')} {fio.get('Имя', '')} {fio.get('Отчество', '')}".strip()
-            ogrn = ip.get('ОГРНИП', '')
-            status = ip.get('Статус', 'Неизвестно')
-            address_data = ip.get('Адрес', {})
-            okved = ip.get('ОКВЭД', {}).get('Код', '') if isinstance(ip.get('ОКВЭД'), dict) else ''
-        else:
-            name = 'Неизвестно'
-            ogrn = ''
-            status = 'Неизвестно'
-            address_data = {}
-            okved = ''
-        
-        # Адрес
-        if isinstance(address_data, dict):
-            address = address_data.get('АдресПолн', '')
-        else:
-            address = str(address_data) if address_data else ''
-        
-        # Риски
-        risk = 0
-        risk_factors = []
-        
-        if status == 'Ликвидировано':
-            risk = 100
-            risk_factors.append('Компания ликвидирована')
-        
-        if checks.get('МассовыйАдрес'):
-            risk += 20
-            risk_factors.append('Массовый адрес регистрации')
-        
-        if checks.get('МассовыйРуководитель'):
-            risk += 15
-            risk_factors.append('Массовый руководитель')
-        
-        if checks.get('НедостоверныеСведения'):
-            risk += 30
-            risk_factors.append('Недостоверные сведения')
-        
-        if checks.get('ДисквалифицированныеЛица'):
-            risk += 25
-            risk_factors.append('Дисквалифицированные лица')
-        
-        return jsonify({
+        result = {
             'inn': inn,
-            'name': name,
-            'ogrn': ogrn,
-            'status': status,
-            'risk': min(100, risk),
-            'risk_factors': risk_factors,
-            'address': address,
-            'okved': okved
-        })
+            'name': 'Неизвестно',
+            'ogrn': '',
+            'status': 'Неизвестно',
+            'risk': 0,
+            'risk_factors': [],
+            'address': '',
+            'okved': ''
+        }
+        
+        if isinstance(raw_data, list) and len(raw_data) > 0:
+            root_item = raw_data[0]
+            items = root_item.get('items', [])
+            
+            if items:
+                company = items[0]
+                result['ogrn'] = company.get('ОГРН', '')
+                result['address'] = company.get('АдресПолн', '')
+                
+                ul = company.get('UL')
+                ip = company.get('IP')
+                
+                if ul:
+                    result['name'] = ul.get('НаимСокр') or ul.get('НаимПолн') or 'Неизвестно'
+                    result['status'] = ul.get('Статус', 'Неизвестно')
+                    result['address'] = ul.get('АдресПолн') or result['address']
+                    
+                elif ip:
+                    fio = ip.get('ФИОРус', {})
+                    parts = [fio.get('Фамилия'), fio.get('Имя'), fio.get('Отчество')]
+                    fio_string = ' '.join(filter(None, parts))
+                    result['name'] = f'ИП {fio_string}' if fio_string else 'Неизвестно'
+                    result['status'] = ip.get('Статус', 'Неизвестно')
+                    result['address'] = ip.get('АдресПолн') or result['address']
+        
+        if isinstance(check_raw, list) and len(check_raw) > 0:
+            check_root = check_raw[0]
+            check_items = check_root.get('items', [])
+            if check_items:
+                checks = check_items[0]
+                
+                if checks.get('МассовыйАдрес'):
+                    result['risk'] += 20
+                    result['risk_factors'].append('Массовый адрес регистрации')
+                if checks.get('МассовыйРуководитель'):
+                    result['risk'] += 15
+                    result['risk_factors'].append('Массовый руководитель')
+                if checks.get('НедостоверныеСведения'):
+                    result['risk'] += 30
+                    result['risk_factors'].append('Недостоверные сведения')
+        
+        if result['status'] == 'Ликвидировано':
+            result['risk'] = 100
+            result['risk_factors'].append('Компания ликвидирована')
+        
+        result['risk'] = min(100, result['risk'])
+        
+        return jsonify(result)
     
     except requests.exceptions.Timeout:
         return jsonify({'error': 'Таймаут API ФНС'}), 500
-    except requests.exceptions.ConnectionError:
-        return jsonify({'error': 'API ФНС недоступен'}), 500
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Ошибка: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
